@@ -3,6 +3,7 @@ package com.tabletportals;
 import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,8 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Replaces the plain teleport-tablet animation with a proper send-off: your character smashes the tablet, a
@@ -37,11 +40,14 @@ import net.runelite.client.ui.overlay.OverlayManager;
  */
 @PluginDescriptor(
 	name = "Tablet Portals",
+	internalName = "tablet-portals",
 	description = "Smash the tablet, a smoky portal opens, and you walk in. Replaces the teleport tablet animation.",
 	tags = {"teleport", "tablet", "tab", "portal", "animation", "cosmetic", "fun"}
 )
 public class TabletPortalsPlugin extends Plugin
 {
+	private static final Logger log = LoggerFactory.getLogger(TabletPortalsPlugin.class);
+
 	/** The game's tablet-break animations (the older one and its newer variants). */
 	static final Set<Integer> TABLET_BREAK = Set.of(
 		AnimationID.POH_SMASH_MAGIC_TABLET,
@@ -167,6 +173,15 @@ public class TabletPortalsPlugin extends Plugin
 	{
 		renderCallbackManager.register(renderCallback);
 		overlayManager.add(reflection);
+		try
+		{
+			snapshots.setDirectory(getPluginDirectory());
+		}
+		catch (IOException | RuntimeException e)
+		{
+			log.debug("No data folder; destination pictures will only last until logout", e);
+			snapshots.setDirectory(null);
+		}
 	}
 
 	@Override

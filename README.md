@@ -16,7 +16,7 @@ a reflection on choppy water. The exit portal shows the place you just left.
 The game only loads the area around you, so a destination can't be drawn before you've been there. Instead,
 the first time you arrive somewhere with a tablet, the plugin takes a small picture of the view (refreshed
 once per login) and uses it for that tablet's portal from then on. Pictures are kept in
-`.runelite/tablet-portals`; delete that folder to reset them.
+`.runelite/plugin-data/tablet-portals`; delete that folder to reset them.
 
 Works with every teleport tablet: house tablets, Varrock/Lumbridge/Falador/Camelot/Ardougne, redirected house
 tablets, Arceuus, Ancient and Lunar tablets. Other magic tablets (enchanting, Bones to bananas) are left alone.

@@ -5,8 +5,9 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,16 +22,17 @@ import net.runelite.api.Perspective;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.client.RuneLite;
 import net.runelite.client.ui.DrawManager;
+import net.runelite.client.util.Filepath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Pictures of where each tablet takes you, for the portal's reflection. The game only has the area around you
  * loaded, so a destination can't be drawn before you get there; instead a picture is taken of the view when
- * you arrive, and shown in the portal the next time you use that tablet. Pictures are small and kept in
- * {@code .runelite/tablet-portals}, one per tablet.
+ * you arrive, and shown in the portal the next time you use that tablet. Pictures are small and kept in the
+ * plugin's data folder ({@code .runelite/plugin-data/tablet-portals}), one per tablet. All file access goes
+ * through RuneLite's {@link Filepath}.
  */
 @Singleton
 class Snapshots
@@ -39,11 +41,12 @@ class Snapshots
 
 	/** Size of a stored picture. The portal is roughly round, so they're square. */
 	static final int SIZE = 192;
-	private static final File DIR = new File(RuneLite.RUNELITE_DIR, "tablet-portals");
 
 	private final Client client;
 	private final DrawManager drawManager;
 	private final ScheduledExecutorService executor;
+	/** The plugin's data folder, or null if it couldn't be opened (pictures then last only until logout). */
+	private volatile Filepath dir;
 
 	private final Map<String, BufferedImage> loaded = new HashMap<>();
 	/** Tablets with no picture on disk, so we don't keep looking. */
@@ -57,6 +60,12 @@ class Snapshots
 		this.client = client;
 		this.drawManager = drawManager;
 		this.executor = executor;
+	}
+
+	/** Sets the folder pictures are kept in: the plugin's own data folder. */
+	void setDirectory(Filepath dir)
+	{
+		this.dir = dir;
 	}
 
 	/** A file-safe key for a tablet, from its name as shown in the menu. */
@@ -83,19 +92,19 @@ class Snapshots
 		{
 			return img;
 		}
-		File f = file(key);
-		if (!f.isFile())
+		Filepath f = file(key);
+		if (f == null || !f.isFile())
 		{
 			missing.add(key);
 			return null;
 		}
-		try
+		try (InputStream in = f.openInputStream())
 		{
-			img = ImageIO.read(f);
+			img = ImageIO.read(in);
 		}
-		catch (IOException e)
+		catch (IOException | RuntimeException e)
 		{
-			log.debug("Couldn't read {}", f, e);
+			log.debug("Couldn't read the picture for {}", key, e);
 		}
 		if (img == null)
 		{
@@ -205,23 +214,41 @@ class Snapshots
 
 	private void save(String key, BufferedImage img)
 	{
+		Filepath f = file(key);
+		if (f == null)
+		{
+			return;
+		}
 		try
 		{
-			if (!DIR.isDirectory() && !DIR.mkdirs())
+			dir.createDirectories();
+			try (OutputStream out = f.openOutputStream())
 			{
-				return;
+				ImageIO.write(img, "png", out);
 			}
-			ImageIO.write(img, "png", file(key));
 		}
-		catch (IOException e)
+		catch (IOException | RuntimeException e)
 		{
 			log.debug("Couldn't save the picture for {}", key, e);
 		}
 	}
 
-	private static File file(String key)
+	/** The picture file for a tablet, or null if there's no data folder or the key isn't a safe file name. */
+	private Filepath file(String key)
 	{
-		return new File(DIR, key + ".png");
+		Filepath d = dir;
+		if (d == null)
+		{
+			return null;
+		}
+		try
+		{
+			return d.joinSegment(key + ".png");
+		}
+		catch (IllegalArgumentException e)
+		{
+			return null;
+		}
 	}
 
 	/** Forgets which destinations were refreshed (on logout), keeping the pictures. */
