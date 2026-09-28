@@ -2,6 +2,7 @@ package com.tabletportals;
 
 import com.google.inject.Provides;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +27,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
 
 /**
  * Replaces the plain teleport-tablet animation with a proper send-off: your character smashes the tablet, a
@@ -64,6 +66,8 @@ public class TabletPortalsPlugin extends Plugin
 
 	/** How many game ticks after clicking "Break" the smash animation can still start. */
 	private static final int CLICK_WINDOW = 3;
+	/** Client ticks after arriving before the destination is photographed (once the exit portal and smoke are gone). */
+	private static final int PHOTO_DELAY = 110;
 	/** Moving further than this in one go (tiles) means the teleport has happened. */
 	private static final int ARRIVED_DISTANCE = 12;
 
@@ -96,6 +100,15 @@ public class TabletPortalsPlugin extends Plugin
 	@Inject
 	private Effects effects;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ReflectionOverlay reflection;
+
+	@Inject
+	private Snapshots snapshots;
+
 	private final Poser poser = new Poser();
 
 	private Phase phase = Phase.IDLE;
@@ -121,6 +134,14 @@ public class TabletPortalsPlugin extends Plugin
 	/** Tick (in {@link #t}) the exit portal starts closing, or -1. */
 	private int exitClosingAt = -1;
 
+	/** The tablet being used, as a key for its destination's picture. */
+	private String tabletKey;
+	/** The view where you broke the tablet, shown in the exit portal. */
+	private BufferedImage originShot;
+	/** Client ticks until the destination is photographed, or -1; and which tablet it's for. */
+	private int photoIn = -1;
+	private String photoKey;
+
 	private Color portalTint;
 	private Color smokeTint;
 	private Color glow;
@@ -145,12 +166,14 @@ public class TabletPortalsPlugin extends Plugin
 	protected void startUp()
 	{
 		renderCallbackManager.register(renderCallback);
+		overlayManager.add(reflection);
 	}
 
 	@Override
 	protected void shutDown()
 	{
 		renderCallbackManager.unregister(renderCallback);
+		overlayManager.remove(reflection);
 		clientThread.invoke(() ->
 		{
 			finish(client.getLocalPlayer());
@@ -165,9 +188,16 @@ public class TabletPortalsPlugin extends Plugin
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked e)
 	{
-		if (isTeleportTabletBreak(e.getMenuOption(), e.getMenuTarget()))
+		if (isTeleportTabletBreak(e.getMenuOption(), e.getMenuTarget()) && phase == Phase.IDLE)
 		{
 			breakClickTick = client.getTickCount();
+			tabletKey = Snapshots.key(e.getMenuTarget());
+			// A picture of here, for the exit portal to show where you came from.
+			originShot = null;
+			if (config.reflection() && config.exitPortal())
+			{
+				snapshots.grab(img -> originShot = img);
+			}
 		}
 	}
 
@@ -222,11 +252,15 @@ public class TabletPortalsPlugin extends Plugin
 		smokeTint = config.tintSmoke() ? glow : null;
 
 		portal = Portal.build(client, portalTint, config.portalSize());
+		walker = new Walker(client, me, this::holdWalk);
 		if (portal != null)
 		{
 			portal.place(portalAt, plane, orientation);
+			if (config.reflection())
+			{
+				reflection.show(portal, portalAt, plane, orientation, snapshots.get(tabletKey), walker);
+			}
 		}
-		walker = new Walker(client, me, this::holdWalk);
 
 		t = 0;
 		exitClosingAt = -1;
@@ -245,6 +279,10 @@ public class TabletPortalsPlugin extends Plugin
 	public void onClientTick(ClientTick e)
 	{
 		effects.tick();
+		if (photoIn >= 0 && --photoIn < 0 && phase == Phase.IDLE && client.getGameState() == GameState.LOGGED_IN)
+		{
+			snapshots.capture(photoKey);
+		}
 		if (phase == Phase.IDLE)
 		{
 			return;
@@ -400,6 +438,12 @@ public class TabletPortalsPlugin extends Plugin
 	private void arrive(Player me)
 	{
 		// Whatever was left at the old spot is gone with the old scene.
+		reflection.hide();
+		if (config.reflection() && snapshots.wants(tabletKey))
+		{
+			photoKey = tabletKey;
+			photoIn = PHOTO_DELAY;
+		}
 		if (walker != null)
 		{
 			walker.remove();
@@ -434,6 +478,10 @@ public class TabletPortalsPlugin extends Plugin
 		}
 		portal.place(portalAt, plane, orientation);
 		walker = new Walker(client, me, this::holdWalk);
+		if (config.reflection() && originShot != null)
+		{
+			reflection.show(portal, portalAt, plane, orientation, originShot, walker);
+		}
 
 		stopTabletAnimation(me);
 		poser.apply(me);
@@ -529,6 +577,8 @@ public class TabletPortalsPlugin extends Plugin
 	/** Ends everything and shows the player normally. */
 	private void finish(Player me)
 	{
+		reflection.hide();
+		originShot = null;
 		showPlayer(me);
 		if (portal != null)
 		{
@@ -546,6 +596,9 @@ public class TabletPortalsPlugin extends Plugin
 	/** Ends everything without touching the player (they're gone: logged out, hopping). */
 	private void reset()
 	{
+		reflection.hide();
+		originShot = null;
+		photoIn = -1;
 		if (walker != null)
 		{
 			walker.remove();
@@ -595,6 +648,10 @@ public class TabletPortalsPlugin extends Plugin
 		if (s == GameState.LOGIN_SCREEN || s == GameState.HOPPING || s == GameState.CONNECTION_LOST)
 		{
 			reset();
+		}
+		if (s == GameState.LOGIN_SCREEN)
+		{
+			snapshots.newSession();
 		}
 	}
 

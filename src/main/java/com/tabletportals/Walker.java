@@ -65,6 +65,12 @@ final class Walker extends RuneLiteObjectController
 		}
 	}
 
+	/** Whether the copy is being drawn now. */
+	boolean isShown()
+	{
+		return client.isRuneLiteObjectRegistered(this);
+	}
+
 	boolean isFor(Player p)
 	{
 		return p == player;

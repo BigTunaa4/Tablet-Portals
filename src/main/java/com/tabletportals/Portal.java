@@ -34,6 +34,10 @@ final class Portal
 	private final RuneLiteObject obj;
 	private final Model[] models = new Model[STEPS.length];
 	private int shown = -1;
+	/** Scale of the fully open swirl against the game's own. */
+	private float full;
+	/** Current size, 0 (gone) to 1 (fully open). */
+	private float size;
 
 	private Portal(RuneLiteObject obj)
 	{
@@ -58,6 +62,7 @@ final class Portal
 
 		RuneLiteObject obj = client.createRuneLiteObject();
 		Portal p = new Portal(obj);
+		p.full = full;
 		for (int i = 0; i < STEPS.length; i++)
 		{
 			int k = Math.max(1, Math.round(128 * full * STEPS[i]));
@@ -103,6 +108,7 @@ final class Portal
 	/** Shows the portal at a size from 0 (gone) to 1 (fully open), a little over 1 for the pop. */
 	void setSize(float size)
 	{
+		this.size = size;
 		if (size < 0.03f)
 		{
 			obj.setActive(false);
@@ -125,6 +131,25 @@ final class Portal
 	{
 		obj.setActive(false);
 		shown = -1;
+		size = 0;
+	}
+
+	/** Current size, 0 (gone) to 1 (fully open). */
+	float getSize()
+	{
+		return obj.isActive() ? size : 0f;
+	}
+
+	/** Radius of the swirl at its current size, in local units. */
+	float radius()
+	{
+		return MODEL_HALF_HEIGHT * full * getSize();
+	}
+
+	/** Height of the swirl's middle above the ground, in local units. It grows from here. */
+	int centreHeight()
+	{
+		return Math.round(HOVER + MODEL_HALF_HEIGHT * full);
 	}
 
 	LocalPoint location()

@@ -99,4 +99,39 @@ public interface TabletPortalsConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "reflection",
+		name = "Reflect the destination",
+		description = "The portal shows the place you're going, like a reflection on choppy water. Each place is"
+			+ " photographed the first time you arrive there, so it shows from your second trip on.",
+		position = 9
+	)
+	default boolean reflection()
+	{
+		return true;
+	}
+
+	@Range(min = 10, max = 90)
+	@ConfigItem(
+		keyName = "reflectionStrength",
+		name = "Reflection strength (%)",
+		description = "How clearly the destination shows through the swirl.",
+		position = 10
+	)
+	default int reflectionStrength()
+	{
+		return 45;
+	}
+
+	@ConfigItem(
+		keyName = "ripple",
+		name = "Ripple",
+		description = "How choppy the reflection is.",
+		position = 11
+	)
+	default Ripple ripple()
+	{
+		return Ripple.CHOPPY;
+	}
 }

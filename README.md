@@ -10,6 +10,14 @@ becomes a proper send-off:
 3. **Walk in.** You stride into the portal, vanish in a flash, and it snaps shut behind you.
 4. **Step out.** At your destination a portal opens behind you and you walk out of it before it closes.
 
+**The portal reflects where it leads.** Looking into the swirl you see the place you're going, rippling like
+a reflection on choppy water. The exit portal shows the place you just left.
+
+The game only loads the area around you, so a destination can't be drawn before you've been there. Instead,
+the first time you arrive somewhere with a tablet, the plugin takes a small picture of the view (refreshed
+once per login) and uses it for that tablet's portal from then on. Pictures are kept in
+`.runelite/tablet-portals`; delete that folder to reset them.
+
 Works with every teleport tablet: house tablets, Varrock/Lumbridge/Falador/Camelot/Ardougne, redirected house
 tablets, Arceuus, Ancient and Lunar tablets. Other magic tablets (enchanting, Bones to bananas) are left alone.
 
@@ -24,6 +32,9 @@ tablets, Arceuus, Ancient and Lunar tablets. Other magic tablets (enchanting, Bo
 | Smoke | None, Light, Normal or Thick |
 | Colour the smoke | Tint the smoke to match the portal |
 | Step out at destination | Walk out of a portal where you arrive |
+| Reflect the destination | Show the destination in the portal, like a reflection on water |
+| Reflection strength | How clearly the destination shows through the swirl |
+| Ripple | Calm, A little choppy (default), or Rough |
 
 ## Good to know
 
