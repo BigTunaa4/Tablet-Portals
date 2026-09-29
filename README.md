@@ -52,3 +52,7 @@ tablets, Arceuus, Ancient and Lunar tablets. Other magic tablets (enchanting, Bo
 ./gradlew build
 ./gradlew run   # starts RuneLite with the plugin loaded, in developer mode
 ```
+
+## Support
+
+This plugin is free and always will be. If you enjoy it and want to say thanks, you can leave a tip on Cash App: [$VintageAdVenturesss](https://cash.app/$VintageAdVenturesss). Totally optional, and much appreciated.
